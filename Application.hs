@@ -27,7 +27,7 @@ getAlias _ db req = eitherT err return $ do
 	q <- (,) <$> fromQ "domain" <*> fromQ "destination"
 	alias <- fmap listToMaybe $ liftIO $ query db (s"SELECT alias,domain,ripple,dt FROM aliases WHERE domain LIKE ? AND alias LIKE ? LIMIT 1") q
 	case alias of
-		Just a -> json ok200 [cors] (a :: Alias) -- TODO: CORS
+		Just a -> json ok200 [cors] (a :: Alias)
 		Nothing -> throwT $ Error NoSuchUser "No such alias on that domain."
 	where
 	err e@(Error NoSuchUser _) = json notFound404 [cors] e
