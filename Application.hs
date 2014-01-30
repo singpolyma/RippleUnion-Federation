@@ -25,7 +25,7 @@ getAlias :: URI -> Connection -> Application
 getAlias _ db req = eitherT err return $ do
 	liftIO $ setTrace db (Just print)
 	q <- (,) <$> fromQ "domain" <*> fromQ "destination"
-	alias <- fmap listToMaybe $ liftIO $ query db (s"SELECT alias,domain,ripple,dt FROM aliases WHERE domain=? AND alias=? LIMIT 1") q
+	alias <- fmap listToMaybe $ liftIO $ query db (s"SELECT alias,domain,ripple,dt FROM aliases WHERE domain LIKE ? AND alias LIKE ? LIMIT 1") q
 	case alias of
 		Just a -> json ok200 [cors] (a :: Alias) -- TODO: CORS
 		Nothing -> throwT $ Error NoSuchUser "No such alias on that domain."
