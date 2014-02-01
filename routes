@@ -1,1 +1,1 @@
-GET /federation => getAlias
+GET /endpoint => getAlias
