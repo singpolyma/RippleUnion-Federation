@@ -49,12 +49,14 @@ instance FromRow Alias where
 			_ -> Errors [toException $ ConversionFailed "TEXT" "RippleAddress" "need a text"]
 
 instance ToJSON Alias where
-	toJSON (Alias alias domain ripple dt) = object $ [
-			s"type" .= "federation_record",
-			s"destination" .= alias,
-			s"domain" .= domain,
-			s"destination_address" .= show ripple
-		] ++ maybe [] (\x -> [s"dt" .= x]) dt
+	toJSON (Alias alias domain ripple dt) = object [
+		s"federation_json" .= (object $ [
+				s"type" .= "federation_record",
+				s"destination" .= alias,
+				s"domain" .= domain,
+				s"destination_address" .= show ripple
+			] ++ maybe [] (\x -> [s"dt" .= x]) dt)
+		]
 
 instance ToJSON Error where
 	toJSON (Error typ message) = object [
