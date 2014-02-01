@@ -26,6 +26,13 @@ instance Buildable (MarkupM a) where
 instance Buildable URI where
 	build = build . show
 
+data Alias = Alias {
+		alias :: Text,
+		domain :: Text,
+		ripple :: RippleAddress,
+		dt :: Maybe Word32
+	}
+
 instance ToRow Alias where
 	toRow (Alias alias domain ripple dt) =
 		[toField alias, toField domain, toField (show ripple), toField dt]
@@ -63,14 +70,15 @@ instance ToJSON ErrorType where
 	toJSON InvalidParams = toJSON "invalidParams"
 	toJSON Unavailable = toJSON "unavailable"
 
-data Home = Home {
+data Domain = Domain {
+		name :: Text,
+		pattern :: Maybe Text
 	}
 
-data Alias = Alias {
-		alias :: Text,
-		domain :: Text,
-		ripple :: RippleAddress,
-		dt :: Maybe Word32
+instance FromRow Domain where
+	fromRow = Domain <$> field <*> field
+
+data Home = Home {
 	}
 
 data ErrorType = NoSuchUser | NoSupported | NoSuchDomain | InvalidParams | Unavailable
