@@ -19,7 +19,7 @@ import Records
 import MustacheTemplates
 #include "PathHelpers.hs"
 
-Just [cors] = stringHeaders [("Access-Control-Allow-Origi", "*")]
+Just [cors] = stringHeaders [("Access-Control-Allow-Origin", "*")]
 
 listToEitherT :: (Monad m) => e -> [a] -> EitherT e m a
 listToEitherT e = noteT' e . listToMaybe
