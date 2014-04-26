@@ -1,6 +1,7 @@
 module Scrape (scrapeRippleAddress) where
 
 import Control.Applicative
+import Control.Monad
 import UnexceptionalIO (fromIO, runUnexceptionalIO)
 import Control.Exception (fromException)
 import Control.Error (EitherT, fmapLT, throwT, runEitherT)
@@ -25,7 +26,16 @@ extractRippleAddress :: Parser ByteString
 extractRippleAddress = do
 	_ <- skipFront
 	Data.Attoparsec.ByteString.Char8.skipWhile (/='r')
-	Data.Attoparsec.ByteString.Char8.takeWhile (inClass rippleAlphabet)
+	_ <- Data.Attoparsec.ByteString.Char8.char 'r'
+	c <- Data.Attoparsec.ByteString.Char8.peekChar
+	case c of
+		Just c' -> when (not (inClass rippleAlphabet c')) $ do
+			Data.Attoparsec.ByteString.Char8.skipWhile (/='r')
+			_ <- Data.Attoparsec.ByteString.Char8.char 'r'
+			return ()
+		_ -> return ()
+	bs <- Data.Attoparsec.ByteString.Char8.takeWhile (inClass rippleAlphabet)
+	return $ BS8.singleton 'r' `BS8.append` bs
 	where
 	skipFront = do
 		Data.Attoparsec.ByteString.Char8.skipWhile (/='R')
