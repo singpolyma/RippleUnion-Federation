@@ -1,6 +1,7 @@
 CREATE TABLE domains (
 	domain TEXT NOT NULL PRIMARY KEY,
-	pattern TEXT
+	pattern TEXT,
+	proxy_uri TEXT
 );
 
 CREATE TABLE aliases (

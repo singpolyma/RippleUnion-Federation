@@ -3,7 +3,7 @@ module Application (getAlias) where
 
 import Prelude ()
 import BasicPrelude
-import Control.Error (EitherT(..), eitherT, throwT, noteT, hoistMaybe, fmapLT)
+import Control.Error (EitherT(..), eitherT, noteT, hoistMaybe, hushT)
 import qualified Data.Text as T
 
 import Network.Wai (Application, queryString)
@@ -13,6 +13,8 @@ import Network.Wai.Util (stringHeaders, json, queryLookup)
 import Network.URI (URI(..), parseAbsoluteURI)
 
 import Database.SQLite.Simple (query, Connection, setTrace)
+
+import qualified Ripple.Federation as Ripple
 
 import Scrape
 import Records
@@ -31,24 +33,34 @@ getAlias :: URI -> Connection -> Application
 getAlias _ db req = eitherT err return $ do
 	liftIO $ setTrace db (Just print)
 	q <- (,) <$> fromQ "domain" <*> fromQ "destination"
-	domain <- listToEitherT nodomain =<< query' "SELECT domain,pattern FROM domains WHERE domain LIKE ? LIMIT 1" [fst q]
+	domain <- listToEitherT nodomain =<< query' "SELECT domain,pattern,proxy_url FROM domains WHERE domain LIKE ? LIMIT 1" [fst q]
 	alias <- query' "SELECT alias,domain,ripple,dt FROM aliases WHERE domain LIKE ? AND alias LIKE ? LIMIT 1" q
-	a <- case alias of
-		(a:_) -> return a
-		[] -> case pattern domain of
-			Just pat -> do
-				uri <- noteT' noalias $ parseAbsoluteURI
-					(textToString $ T.replace (s"%s") (snd q) pat)
-				result <- fmapLT (const noalias) $ EitherT $
-					liftIO $ scrapeRippleAddress uri
-				address <- noteT' noalias $ readMay $ decodeUtf8 result
-				return Alias {
-					alias = snd q,
-					domain = fst q,
-					ripple = address,
-					dt = Nothing
-				}
-			Nothing -> throwT noalias
+	a <- noteT noalias $
+		(hoistMaybe $ listToMaybe alias) <|>
+		(do
+			proxy <- hoistMaybe $ proxy domain
+			resolved <- hushT $ EitherT $ liftIO $
+				Ripple.resolveAgainst (Ripple.Alias (snd q) (fst q)) proxy
+			return Alias {
+				alias = Ripple.destination $ Ripple.alias resolved,
+				domain = Ripple.domain $ Ripple.alias resolved,
+				ripple = Ripple.ripple $ resolved,
+				dt = Ripple.dt $ resolved
+			}
+		) <|>
+		(do
+			pat <- hoistMaybe $ pattern domain
+			uri <- hoistMaybe $ parseAbsoluteURI
+				(textToString $ T.replace (s"%s") (snd q) pat)
+			result <- hushT $ EitherT $ liftIO $ scrapeRippleAddress uri
+			address <- hoistMaybe $ readMay $ decodeUtf8 result
+			return Alias {
+				alias = snd q,
+				domain = fst q,
+				ripple = address,
+				dt = Nothing
+			}
+		)
 	json ok200 [cors] (a :: Alias)
 	where
 	query' sql = liftIO . query db (s sql)

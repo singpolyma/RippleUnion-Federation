@@ -4,12 +4,12 @@ import Prelude ()
 import BasicPrelude
 
 import Text.Blaze.Internal (MarkupM)
-import Network.URI (URI)
+import Network.URI (URI, parseAbsoluteURI)
 import Data.Base58Address (RippleAddress)
 
 import Data.Aeson (ToJSON(..), object, (.=))
 import Data.Text.Buildable
-import Database.SQLite.Simple (SQLData(SQLText))
+import Database.SQLite.Simple (SQLData(SQLText,SQLNull))
 import Database.SQLite.Simple.FromRow (FromRow(..), field, fieldWith)
 import Database.SQLite.Simple.ToRow (ToRow(..))
 import Database.SQLite.Simple.ToField (ToField(..), toField)
@@ -74,11 +74,19 @@ instance ToJSON ErrorType where
 
 data Domain = Domain {
 		name :: Text,
-		pattern :: Maybe Text
+		pattern :: Maybe Text,
+		proxy :: Maybe URI
 	}
 
 instance FromRow Domain where
-	fromRow = Domain <$> field <*> field
+	fromRow = Domain <$> field <*> field <*> fieldWith fromUri
+		where
+		fromUri f = case fieldData f of
+			(SQLText t) -> case parseAbsoluteURI (textToString t) of
+				Nothing -> Errors [toException $ ConversionFailed "TEXT" "URI" "invalid"]
+				Just uri -> Ok (Just uri)
+			SQLNull -> Ok Nothing
+			_ -> Errors [toException $ ConversionFailed "TEXT" "URI" "need a text"]
 
 data Home = Home {
 	}
